@@ -1,0 +1,16 @@
+# env & caches
+.venv/
+__pycache__/
+*.pyc
+
+# data & outputs
+data/
+model_out/
+artifacts/
+*.npy
+*.jpg
+*.png
+
+# sagemaker/local
+*.ipynb_checkpoints
+*.log
