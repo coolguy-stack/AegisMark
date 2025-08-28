@@ -1,135 +1,225 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta charset="utf-8" />
 <title>AegisMark — Local Demo</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
-:root{--fg:#111;--muted:#666;--ok:#0a7a2a;--weak:#a77700;--no:#b00020;--bg:#fff;--card:#f7f7f8;--ring:#2684ff22}
-*{box-sizing:border-box} body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--fg);background:var(--bg);margin:2rem auto;max-width:980px;padding:0 1rem}
-h1{margin:.2rem 0 .5rem} .muted{color:var(--muted)}
-.row{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
-.card{background:var(--card);border:1px solid #e7e7ea;border-radius:14px;padding:1rem}
-#drop{border:2px dashed #cfd2d7;border-radius:12px;padding:1.25rem;text-align:center;cursor:pointer;transition:.15s}
-#drop.drag{border-color:#999;background:#fafbfc}
-img{max-width:360px;border-radius:10px;border:1px solid #e1e3e6}
-button{padding:.62rem 1rem;border-radius:10px;border:1px solid #ccd1d8;background:#fff;cursor:pointer}
-button:focus{outline:3px solid var(--ring)}
+:root{--fg:#eaeaea;--mut:#9aa0a6;--ok:#2ecc71;--no:#ff6b6b;--bg:#0e0f13;--card:#161821;--line:#25293a}
+*{box-sizing:border-box}
+body{margin:0 auto;max-width:1100px;padding:24px 16px;font-family:ui-sans-serif,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg)}
+h1{margin:0 0 6px;font-weight:700}
+.muted{color:var(--mut)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width: 980px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;overflow:hidden}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.dz{border:2px dashed #3a3f5a;border-radius:12px;padding:14px;text-align:center;cursor:pointer}
+.dz.drag{background:#141627;border-color:#6f78a8}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+button{padding:.58rem .9rem;border-radius:10px;border:1px solid #404660;background:#1f2333;color:var(--fg);cursor:pointer}
 button:disabled{opacity:.6;cursor:not-allowed}
-.status{font-weight:700}
-.ok{color:var(--ok)} .weak{color:var(--weak)} .no{color:var(--no)}
-progress{width:260px;height:10px}
-pre{background:#0f1115;color:#e8e9ee;padding:1rem;border-radius:10px;overflow:auto;max-height:360px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
-@media (max-width:900px){.grid{grid-template-columns:1fr}}
-.kv{display:grid;grid-template-columns:180px 1fr;gap:.25rem .75rem;align-items:center}
-.badge{display:inline-block;padding:.25rem .5rem;border-radius:999px;border:1px solid #ddd;font-size:.85rem}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.badge{padding:.25rem .5rem;border-radius:999px;border:1px solid var(--line);font-size:.85rem}
+.ok{color:var(--ok)} .no{color:var(--no)}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:6px 10px}
+progress{width:220px;height:9px}
+pre{background:#0b0c10;color:#d9e0f2;border:1px solid #1d2030;border-radius:10px;padding:12px;margin:0;max-height:220px;overflow:auto}
+.preview{width:100%;aspect-ratio:1/1;border-radius:10px;border:1px solid var(--line);overflow:hidden;display:flex;align-items:center;justify-content:center;background:#0e1020}
+.preview img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.pill{background:#1f2333;border:1px solid #2b3150;border-radius:999px;padding:.35rem .65rem}
+.hidden{display:none}
+.label{min-width:92px}
+.small{font-size:.9rem}
+.split{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
 </style>
 </head>
 <body>
-<header class="row" style="justify-content:space-between">
+<header class="header">
   <div>
     <h1>AegisMark — Local Demo</h1>
-    <div class="muted">Drop or choose an image. Click Detect.</div>
+    <div class="muted">Upload an image to <b>Detect</b> or <b>Encode</b>.</div>
   </div>
   <div id="meta" class="muted"></div>
 </header>
 
 <main class="grid">
   <section class="card">
-    <div id="drop">
-      <div><strong>Drag & drop</strong> an image here, or</div>
-      <div style="margin-top:.75rem"><input id="file" type="file" accept="image/*"/></div>
-    </div>
-
-    <div class="row" style="margin-top:1rem;gap:.75rem">
-      <button id="detect" disabled>Detect Watermark</button>
-      <span id="status" class="status muted">Choose an image…</span>
-    </div>
-
-    <div class="row" style="margin-top:1rem;align-items:flex-start">
-      <img id="preview" alt="preview"/>
-      <div class="kv">
-        <div>Presence</div><div><progress id="presence_bar" value="0" max="1"></progress> <span id="presence_val" class="mono">0.000</span></div>
-        <div>Null (wrong-key)</div><div><progress id="null_bar" value="0" max="1"></progress> <span id="null_val" class="mono">0.000</span></div>
-        <div>Margin</div><div class="mono"><span id="margin_val">0.000</span></div>
-        <div>Thresholds</div><div class="mono">lo=<span id="tlo">—</span> hi=<span id="thi">—</span> Δ=<span id="tmar">—</span></div>
-        <div>Result</div><div id="present" class="badge">—</div>
-        <div>Signature</div><div class="row"><span id="sig" class="mono">—</span><button id="copy" style="margin-left:.5rem">Copy</button></div>
+    <div class="header"><div class="row"><div class="pill">Detect</div></div></div>
+    <div id="dzDetect" class="dz">Drag & drop here, or click to choose<br/><input id="fDetect" type="file" accept="image/*" class="hidden"></div>
+    <div class="row" style="margin-top:10px"><button id="btnDetect" disabled>Run Detection</button><span id="stDetect" class="muted">Choose an image…</span></div>
+    <div class="row" style="margin-top:12px;align-items:flex-start">
+      <div class="preview" style="max-width:260px;min-width:220px"><img id="imgDetect" alt=""></div>
+      <div class="kv small" style="flex:1">
+        <div>Presence</div><div class="split"><progress id="prPresence" value="0" max="1"></progress><span id="valPresence" class="badge">0.000</span></div>
+        <div>Decision</div><div id="valDecision" class="badge">—</div>
+        <div>Signature (hex)</div><div class="split"><span id="valSig" class="badge">—</span><button id="btnCopy">Copy</button></div>
+        <div>T<sub>lo</sub> / T<sub>hi</sub></div><div id="valThresh" class="badge">—</div>
+        <div>Margin</div><div id="valMargin" class="badge">—</div>
       </div>
     </div>
+    <div class="header" style="margin-top:12px"><div>Raw JSON</div><div class="row"><button id="btnClearDetect">Clear</button><button id="btnCollapseDetect">Collapse</button></div></div>
+    <pre id="jsonDetect">{}</pre>
   </section>
 
   <section class="card">
-    <div class="row" style="justify-content:space-between">
-      <h3 style="margin:0">Raw JSON</h3>
-      <button id="clear">Clear</button>
+    <div class="header"><div class="row"><div class="pill">Encode</div></div></div>
+    <div id="dzEncode" class="dz">Drag & drop here, or click to choose<br/><input id="fEncode" type="file" accept="image/*" class="hidden"></div>
+    <div class="row" style="margin-top:10px">
+      <span class="label">α</span>
+      <input id="alpha" type="range" min="0.004" max="0.020" step="0.0005" value="0.0085" style="width:200px">
+      <span id="alphaV" class="badge">0.0085</span>
+      <span class="label">JPEG q</span>
+      <input id="jpegQ" type="range" min="75" max="100" step="1" value="95" style="width:200px">
+      <span id="jpegQV" class="badge">95</span>
     </div>
-    <pre id="out">{ }</pre>
+    <div class="row" style="margin-top:10px">
+      <button id="btnEncode" disabled>Encode Image</button>
+      <span id="stEncode" class="muted">Choose an image…</span>
+      <a id="dlLink" class="hidden" href="#" download=""></a>
+    </div>
+    <div class="header" style="margin-top:12px"><div>Raw JSON</div><div class="row"><button id="btnClearEncode">Clear</button></div></div>
+    <pre id="jsonEncode">{}</pre>
   </section>
 </main>
 
 <script>
-const $=id=>document.getElementById(id)
-const file=$("file"), drop=$("drop"), detectBtn=$("detect")
-const preview=$("preview"), status=$("status"), out=$("out"), meta=$("meta")
-const presenceBar=$("presence_bar"), presenceVal=$("presence_val")
-const nullBar=$("null_bar"), nullVal=$("null_val"), marginVal=$("margin_val")
-const present=$("present"), sig=$("sig"), copyBtn=$("copy"), clearBtn=$("clear")
-const tlo=$("tlo"), thi=$("thi"), tmar=$("tmar")
+const $ = id => document.getElementById(id)
 
-let CURRENT_FILE=null, TLO=0.04, THI=0.06, TMAR=0.01
+const dzDetect=$("dzDetect"), fDetect=$("fDetect"), btnDetect=$("btnDetect"), stDetect=$("stDetect")
+const imgDetect=$("imgDetect"), prPresence=$("prPresence"), valPresence=$("valPresence")
+const valDecision=$("valDecision"), valSig=$("valSig"), valThresh=$("valThresh"), valMargin=$("valMargin")
+const jsonDetect=$("jsonDetect"), btnClearDetect=$("btnClearDetect"), btnCollapseDetect=$("btnCollapseDetect"), btnCopy=$("btnCopy")
+
+const dzEncode=$("dzEncode"), fEncode=$("fEncode"), btnEncode=$("btnEncode"), stEncode=$("stEncode")
+const alpha=$("alpha"), alphaV=$("alphaV"), jpegQ=$("jpegQ"), jpegQV=$("jpegQV")
+const jsonEncode=$("jsonEncode"), btnClearEncode=$("btnClearEncode"), dlLink=$("dlLink")
+
+const meta=$("meta")
+
+let DETECT_FILE=null, ENCODE_FILE=null, THI=0.055, TLO=0.025, MARG=0.010
+let _lastBlobURL=null
+
+function humanBytes(n){ if(!n) return "0 B"; const u=["B","KB","MB","GB"], k=1024; let i=0; while(n>=k&&i<u.length-1){n/=k;i++} return `${n.toFixed(1)} ${u[i]}` }
+function safeJSONStringify(o){ try{return JSON.stringify(o,null,2)}catch(_){return String(o)} }
 
 async function getHealth(){
   try{
-    const r=await fetch("/health"); const j=await r.json()
-    TLO=j.t_lo??0.04; THI=j.t_hi??0.06; TMAR=j.margin??0.01
-    tlo.textContent=TLO.toFixed(3); thi.textContent=THI.toFixed(3); tmar.textContent=TMAR.toFixed(3)
-    meta.textContent=`bit_len=${j.bit_len} • ${j.W}×${j.H}`
-  }catch(e){ meta.textContent="health: unavailable" }
+    const r = await fetch("/health"); const j = await r.json()
+    TLO = j.t_lo ?? TLO; THI = j.t_hi ?? THI; MARG = j.margin ?? MARG
+    meta.textContent = `bit_len=${j.bit_len} • ${j.W}×${j.H}`
+  }catch{ meta.textContent = "health: unavailable" }
 }
-function resetUI(){
-  detectBtn.disabled=true; status.textContent="Choose an image…"
-  preview.removeAttribute("src"); out.textContent="{}"; sig.textContent="—"
-  presenceBar.value=0; presenceVal.textContent="0.000"; nullBar.value=0; nullVal.textContent="0.000"; marginVal.textContent="0.000"
-  present.textContent="—"; present.className="badge"
-}
-function setFile(f){
-  CURRENT_FILE=f; if(!f){ resetUI(); return }
-  const r=new FileReader(); r.onload=()=>{ preview.src=r.result }; r.readAsDataURL(f)
-  detectBtn.disabled=false; status.textContent=`Ready: ${f.name}`
-}
-file.addEventListener("click", (e)=>{ e.stopPropagation(); file.value=""; })
-file.addEventListener("change", (e)=> setFile(e.target.files[0]))
-drop.addEventListener("click", (e)=>{ if (e.target === file) return; file.value=""; file.click(); })
-
-;["dragenter","dragover"].forEach(evt=>drop.addEventListener(evt,e=>{e.preventDefault(); drop.classList.add("drag")}))
-;["dragleave","drop"].forEach(evt=>drop.addEventListener(evt,e=>{e.preventDefault(); drop.classList.remove("drag")}))
-drop.addEventListener("drop",e=>{ const f=e.dataTransfer.files && e.dataTransfer.files[0]; if(f) setFile(f) })
-
-detectBtn.addEventListener("click",async()=>{
-  if(!CURRENT_FILE) return
-  status.textContent="Detecting…"; detectBtn.disabled=true
-  try{
-    const body=new FormData(); body.append("file",CURRENT_FILE)
-    const r=await fetch("/detect",{method:"POST",body}); const j=await r.json()
-    out.textContent=JSON.stringify(j,null,2)
-    presenceBar.value=j.presence??0; presenceVal.textContent=(j.presence??0).toFixed(3)
-    nullBar.value=j.presence_null??0; nullVal.textContent=(j.presence_null??0).toFixed(3)
-    marginVal.textContent=(j.margin??0).toFixed(3)
-    sig.textContent=j.signature_hex||"—"
-    if(j.confidence==="strong"){ present.textContent="Present (strong)"; present.className="badge ok" }
-    else if(j.confidence==="weak"){ present.textContent="Present (weak)"; present.className="badge weak" }
-    else { present.textContent="Absent"; present.className="badge no" }
-    status.textContent="Done"
-  }catch(e){
-    out.textContent=JSON.stringify({error:String(e)},null,2)
-    present.textContent="Error"; present.className="badge no"; status.textContent="Error"
-  }finally{ detectBtn.disabled=false }
-})
-copyBtn.addEventListener("click",async()=>{ const txt=sig.textContent; if(!txt||txt==="—") return; try{ await navigator.clipboard.writeText(txt); copyBtn.textContent="Copied!"; setTimeout(()=>copyBtn.textContent="Copy",1e3)}catch(e){} })
-clearBtn.addEventListener("click",()=>{ file.value=""; setFile(null) })
 getHealth()
+
+function bindDZ(box,input,setter){
+  ["dragenter","dragover"].forEach(e => box.addEventListener(e,ev=>{ev.preventDefault();box.classList.add("drag")}))
+  ;["dragleave","drop"].forEach(e => box.addEventListener(e,ev=>{ev.preventDefault();box.classList.remove("drag")}))
+  box.addEventListener("click", ()=> input.click())
+  box.addEventListener("drop", ev=>{
+    const f = ev.dataTransfer.files && ev.dataTransfer.files[0]
+    if(f) setter(f)
+  })
+  input.addEventListener("change", ev=>{
+    const f = ev.target.files && ev.target.files[0]
+    if(f) setter(f)
+  })
+}
+
+function setDetectFile(f){
+  DETECT_FILE=f
+  if(!f){
+    btnDetect.disabled=true; stDetect.textContent="Choose an image…"; imgDetect.src=""; jsonDetect.textContent="{}"
+    prPresence.value=0; valPresence.textContent="0.000"; valDecision.textContent="—"; valDecision.className="badge"; valSig.textContent="—"; valThresh.textContent="—"; valMargin.textContent="—"
+    return
+  }
+  const r = new FileReader(); r.onload = ()=> imgDetect.src=r.result; r.readAsDataURL(f)
+  btnDetect.disabled=false; stDetect.textContent=`Ready: ${f.name}`
+}
+
+function setEncodeFile(f){
+  ENCODE_FILE=f
+  if(!f){
+    btnEncode.disabled=true; stEncode.textContent="Choose an image…"; jsonEncode.textContent="{}"
+    if(_lastBlobURL){URL.revokeObjectURL(_lastBlobURL); _lastBlobURL=null}
+    dlLink.classList.add("hidden"); dlLink.textContent=""
+    return
+  }
+  btnEncode.disabled=false; stEncode.textContent=`Ready: ${f.name}`
+}
+
+bindDZ(dzDetect,fDetect,setDetectFile)
+bindDZ(dzEncode,fEncode,setEncodeFile)
+
+btnDetect.addEventListener("click", async ()=>{
+  if(!DETECT_FILE) return
+  btnDetect.disabled=true; stDetect.textContent="Detecting…"
+  try{
+    const body=new FormData(); body.append("file", DETECT_FILE)
+    const r = await fetch("/detect",{method:"POST",body}); const j = await r.json()
+    jsonDetect.textContent = safeJSONStringify(j)
+    prPresence.value = j.presence ?? 0; valPresence.textContent = (j.presence ?? 0).toFixed(3)
+    const conf = j.confidence || "absent"
+    valDecision.textContent = conf==="strong"?"Watermark":"Absent"
+    valDecision.className = "badge " + (conf==="strong"?"ok":"no")
+    valSig.textContent = j.signature_hex || "—"
+    valThresh.textContent = `lo=${TLO.toFixed(3)} hi=${THI.toFixed(3)}`
+    valMargin.textContent = (j.margin ?? 0).toFixed(3)
+  }catch(e){
+    jsonDetect.textContent = safeJSONStringify({error:String(e)})
+    valDecision.textContent="Error"; valDecision.className="badge no"
+  }finally{
+    btnDetect.disabled=false; stDetect.textContent="Done"
+  }
+})
+
+btnCopy.addEventListener("click", async ()=>{
+  const t = valSig.textContent; if(!t || t==="—") return
+  try{ await navigator.clipboard.writeText(t); btnCopy.textContent="Copied!"; setTimeout(()=>btnCopy.textContent="Copy",1000) }catch{}
+})
+
+btnClearDetect.addEventListener("click", ()=> setDetectFile(null))
+btnCollapseDetect.addEventListener("click", ()=>{
+  jsonDetect.style.display = jsonDetect.style.display==="none" ? "block" : "none"
+})
+
+alpha.addEventListener("input", ()=> alphaV.textContent = (+alpha.value).toFixed(4))
+jpegQ.addEventListener("input", ()=> jpegQV.textContent = jpegQ.value)
+
+btnEncode.addEventListener("click", async ()=>{
+  if(!ENCODE_FILE) return
+  btnEncode.disabled=true; stEncode.textContent="Encoding…"
+  try{
+    const body=new FormData()
+    body.append("file", ENCODE_FILE)
+    body.append("alpha", alpha.value)
+    body.append("jpeg_q", jpegQ.value)
+    const r = await fetch("/encode",{method:"POST",body}); const j = await r.json()
+    jsonEncode.textContent = safeJSONStringify(j)
+    const b64 = j.image_base64 || j.encoded_image
+    if(b64){
+      const bin=atob(b64); const arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i)
+      const blob=new Blob([arr],{type:"image/jpeg"})
+      if(_lastBlobURL){URL.revokeObjectURL(_lastBlobURL)}
+      const url=URL.createObjectURL(blob); _lastBlobURL=url
+      const baseName = (ENCODE_FILE?.name || "image").replace(/\.[^.]+$/, "")
+      dlLink.download = `${baseName}_wm_q${jpegQ.value}.jpg`
+      dlLink.href = url
+      dlLink.textContent = `Download (${humanBytes(blob.size)})`
+      dlLink.classList.remove("hidden")
+    }else{
+      dlLink.classList.add("hidden"); dlLink.textContent=""
+    }
+  }catch(e){
+    jsonEncode.textContent = safeJSONStringify({error:String(e)})
+    dlLink.classList.add("hidden"); dlLink.textContent=""
+  }finally{
+    btnEncode.disabled=false; stEncode.textContent="Done"
+  }
+})
+
+btnClearEncode.addEventListener("click", ()=>{
+  setEncodeFile(null); fEncode.value=""
+})
 </script>
 </body>
 </html>
