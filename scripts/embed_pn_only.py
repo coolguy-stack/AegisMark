@@ -1,56 +1,53 @@
-import argparse, numpy as np, torch, torch.nn.functional as F
+#!/usr/bin/env python3
+import argparse, os, numpy as np, torch
 from PIL import Image
 import torchvision.transforms.functional as TF
 
-p=argparse.ArgumentParser()
-p.add_argument("--encoder", required=True)
-p.add_argument("--in_img", required=True)
-p.add_argument("--out_img", required=True)
-p.add_argument("--bits_out", required=True)
-p.add_argument("--alpha", type=float, default=0.006)  # lower = more invisible (try 0.004–0.008)
-p.add_argument("--save_jpeg_q", type=int, default=95) # use PNG if you want: set q<=0 to force PNG
-a=p.parse_args()
+def bits_from_hex(h, bit_len):
+    h = h.strip().lower().replace("0x","")
+    b = bin(int(h,16))[2:].zfill(bit_len)
+    return np.array([int(x) for x in b[-bit_len:]], dtype=np.uint8)
 
-# load PN bank from encoder
-enc = torch.jit.load(a.encoder, map_location="cpu").eval()
-sd = enc.state_dict()
-P = None
-for k in ("pn.P", "pn.P_patch", "pn.P_full", "P", "P_patch"):
-    if k in sd:
-        P = sd[k].float(); break
-assert P is not None, "PN bank not found in encoder state_dict"
-if P.dim()==4 and P.size(1)==1: P = P.squeeze(1)
-bit_len, H, W = P.shape
-# normalize PN per-bit
-P = P / (P.view(bit_len,-1).std(dim=1, keepdim=True).clamp_min(1e-8).view(bit_len,1,1))
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--encoder", required=True)
+    ap.add_argument("--in_img", required=True)
+    ap.add_argument("--out_img", required=True)
+    ap.add_argument("--bits_out", required=True)
+    ap.add_argument("--bit_len", type=int, default=32)
+    ap.add_argument("--alpha", type=float, default=0.009)
+    ap.add_argument("--save_jpeg_q", type=int, default=95)
+    ap.add_argument("--bits_in", default="", help="path to .npy bits (0/1) to embed")
+    ap.add_argument("--token_hex", default="", help="hex token to embed; overrides bits_in")
+    args = ap.parse_args()
 
-# image
-img = Image.open(a.in_img).convert("RGB").resize((W,H))
-x = TF.to_tensor(img).unsqueeze(0)  # 1x3xHxW
+    enc = torch.jit.load(args.encoder, map_location="cpu").eval()
+    im = Image.open(args.in_img).convert("RGB")
+    W = H = getattr(enc, "size", 256)
+    im = im.resize((W,H), Image.BILINEAR)
+    x = TF.to_tensor(im).unsqueeze(0)
 
-# texture mask (Laplacian magnitude on gray, normalized 0..1, smoothed)
-k = torch.tensor([[-1,-1,-1],[-1,8,-1],[-1,-1,-1]], dtype=torch.float32).view(1,1,3,3)
-g = 0.2989*x[:,0:1]+0.5870*x[:,1:2]+0.1140*x[:,2:3]
-g = F.pad(g,(1,1,1,1),mode="reflect")
-hp = F.conv2d(g,k)
-m = hp.abs()
-m = (m - m.min()) / (m.max()-m.min()+1e-8)
-m = F.avg_pool2d(m, 3, stride=1, padding=1)  # light smooth
-m = m.clamp(0,1)
+    if args.token_hex:
+        bits = bits_from_hex(args.token_hex, args.bit_len)
+    elif args.bits_in:
+        bits = np.load(args.bits_in).astype(np.uint8).ravel()
+        if bits.size < args.bit_len:
+            pad = np.random.randint(0,2,size=args.bit_len-bits.size,dtype=np.uint8)
+            bits = np.concatenate([bits, pad], 0)
+        bits = bits[:args.bit_len]
+    else:
+        bits = np.random.randint(0,2,size=args.bit_len,dtype=np.uint8)
 
-# bits
-bits = (torch.rand(bit_len)>0.5).float()
-np.save(a.bits_out, bits.numpy().astype(np.uint8))
+    b = torch.from_numpy(bits[None,:].astype("float32"))
+    with torch.no_grad():
+        try:
+            y,_ = enc(x, b, args.alpha)
+        except (TypeError, RuntimeError):
+            y,_ = enc(x, b)
+    y = y.clamp(0,1)
+    Image.fromarray((y[0].permute(1,2,0).numpy()*255).astype("uint8")).save(args.out_img, quality=args.save_jpeg_q)
+    os.makedirs(os.path.dirname(args.bits_out) or ".", exist_ok=True)
+    np.save(args.bits_out, bits)
 
-s = (bits*2-1).view(1,bit_len,1,1)
-r_pn = (s * P.unsqueeze(0)).sum(dim=1, keepdim=True)  # 1x1xHxW
-r_pn = r_pn * m * a.alpha
-r_rgb = r_pn.repeat(1,3,1,1)
-
-xw = (x + r_rgb).clamp(0,1)
-out = TF.to_pil_image(xw.squeeze(0))
-if a.save_jpeg_q>0:
-    out.save(a.out_img, quality=a.save_jpeg_q, optimize=True)
-else:
-    out.save(a.out_img)  # PNG
-print({"bit_len": int(bit_len), "alpha": a.alpha})
+if __name__ == "__main__":
+    main()

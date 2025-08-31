@@ -7,3 +7,4 @@ opencv-python-headless
 albumentations
 reedsolo
 boto3
+matplotlib
